@@ -2,7 +2,7 @@ from typing import Sequence, Union
 import ml_collections
 import torch
 import torch.nn as nn
-from medical.model.fusion.layers import get_config
+from Network.model.fusion.layers import get_config
 from einops import rearrange
 
 class Convolution(nn.Module):

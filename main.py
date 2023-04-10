@@ -1,6 +1,6 @@
 import argparse
 from utils.data_utils import get_loader
-from medical.trainer import Trainer, Validator
+from Network.trainer import Trainer, Validator
 from monai.inferers import SlidingWindowInferer
 import torch
 import torch.nn.parallel
@@ -10,9 +10,9 @@ import torch.utils.data.distributed
 import numpy as np
 from monai.metrics import DiceMetric
 from monai.utils.enums import MetricReduction
-from medical.optimizers.lr_scheduler import LinearWarmupCosineAnnealingLR
+from Network.optimizers.lr_scheduler import LinearWarmupCosineAnnealingLR
 from monai.losses.dice import DiceLoss
-from medical.model.nested_former import NestedFormer
+from Network.model.nested_former import NestedFormer
 
 parser = argparse.ArgumentParser(description='Swin UNETR segmentation pipeline for BRATS Challenge')
 parser.add_argument('--model_name', default="swinunetr", help='the model will be trained')
