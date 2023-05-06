@@ -1,3 +1,4 @@
+
 import argparse
 from utils.data_utils import get_loader
 from medical.trainer import Trainer, Validator
@@ -8,7 +9,7 @@ import torch.distributed as dist
 import torch.multiprocessing as mp
 import torch.utils.data.distributed
 import numpy as np
-from monai.metrics import DiceMetric
+from monai.metrics import DiceMetric,HausdorffDistanceMetric
 from monai.utils.enums import MetricReduction
 from medical.optimizers.lr_scheduler import LinearWarmupCosineAnnealingLR
 from monai.losses.dice import DiceLoss
@@ -16,12 +17,13 @@ from medical.model.nested_former import NestedFormer
 
 parser = argparse.ArgumentParser(description='Swin UNETR segmentation pipeline for BRATS Challenge')
 parser.add_argument('--model_name', default="swinunetr", help='the model will be trained')
-parser.add_argument('--checkpoint', default=None, help='start training from saved checkpoint')
+parser.add_argument('--checkpoint', default='./runs/log_train_nestedformer/model_final.pt', help='start training from saved checkpoint')
+#改变了模型
 parser.add_argument('--logdir', default='test', type=str, help='directory to save the tensorboard logs')
 parser.add_argument('--fold', default=0, type=int, help='data fold')
 parser.add_argument('--pretrain_model_path', default='./model.pt', type=str, help='pretrained model name')
 parser.add_argument('--load_pretrain', action="store_true", help='pretrained model name')
-parser.add_argument('--data_dir', default='/mnt/datasets/brats2020/MICCAI_BraTS2020_TrainingData', type=str, help='dataset directory')
+parser.add_argument('--data_dir', default='./data/MICCAI_BraTS2020_TrainingData', type=str, help='dataset directory')
 parser.add_argument('--json_list', default='./brats2020_datajson.json', type=str, help='dataset json file')
 parser.add_argument('--max_epochs', default=300, type=int, help='max number of training epochs')
 parser.add_argument('--batch_size', default=2, type=int, help='number of batch size')
@@ -30,7 +32,7 @@ parser.add_argument('--optim_lr', default=1e-4, type=float, help='optimization l
 parser.add_argument('--optim_name', default='adamw', type=str, help='optimization algorithm')
 parser.add_argument('--reg_weight', default=1e-5, type=float, help='regularization weight')
 parser.add_argument('--momentum', default=0.99, type=float, help='momentum')
-parser.add_argument('--val_every', default=10, type=int, help='validation frequency')
+parser.add_argument('--val_every', default=1, type=int, help='validation frequency')
 parser.add_argument('--distributed', action='store_true', help='start distributed training')
 parser.add_argument('--world_size', default=1, type=int, help='number of nodes for distributed training')
 parser.add_argument('--rank', default=0, type=int, help='node rank for distributed training')
@@ -82,7 +84,6 @@ def main():
         main_worker(gpu=0, args=args)
 
 def main_worker(gpu, args):
-
     if args.distributed:
         torch.multiprocessing.set_start_method('fork', force=True)
     np.set_printoptions(formatter={'float': '{: 0.3f}'.format}, suppress=True)
@@ -176,12 +177,15 @@ def main_worker(gpu, args):
     dice_metric = DiceMetric(include_background=True,
                              reduction=MetricReduction.MEAN_BATCH,
                              get_not_nans=True)
+    hd95_metric = HausdorffDistanceMetric(include_background=True,percentile=95.0,
+                                         reduction=MetricReduction.MEAN_BATCH,
+                                        get_not_nans=True)
 
     validator = Validator(args,
                           model,
                           val_loader,
                           class_list=("TC", "WT", "ET"),
-                          metric_functions=[["dice", dice_metric]],
+                          metric_functions=[["dice", dice_metric],["hd95",hd95_metric]],
                           sliding_window_infer=window_infer,
                           post_label=None,
                           post_pred=post_pred_func)
